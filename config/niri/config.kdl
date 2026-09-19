@@ -34,10 +34,10 @@ output "HDMI-A-2" {
     scale 1.3333333
 }
 
-// Disable the top-left hot-corner (mouse-to-corner opens overview by default).
+// Top-left hot-corner: mouse-to-corner opens the overview (niri default).
 gestures {
     hot-corners {
-        off
+        top-left
     }
 }
 
@@ -190,17 +190,17 @@ binds {
     // Previous workspace (sway: $mod+Tab back_and_forth)
     Mod+Tab { focus-workspace-previous; }
 
-    // Workspaces 1-10 (sway: $mod+1..0)
-    Mod+1 { focus-workspace 1; }
-    Mod+2 { focus-workspace 2; }
-    Mod+3 { focus-workspace 3; }
-    Mod+4 { focus-workspace 4; }
-    Mod+5 { focus-workspace 5; }
-    Mod+6 { focus-workspace 6; }
-    Mod+7 { focus-workspace 7; }
-    Mod+8 { focus-workspace 8; }
-    Mod+9 { focus-workspace 9; }
-    Mod+0 { focus-workspace 10; }
+    // Workspaces 1-10 (toggle: press again to jump back, sway back_and_forth)
+    Mod+1 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 1"; }
+    Mod+2 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 2"; }
+    Mod+3 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 3"; }
+    Mod+4 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 4"; }
+    Mod+5 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 5"; }
+    Mod+6 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 6"; }
+    Mod+7 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 7"; }
+    Mod+8 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 8"; }
+    Mod+9 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 9"; }
+    Mod+0 { spawn-sh "/home/kk/.config/niri/ws_toggle.py 10"; }
 
     // Move window to workspace + switch (sway: $mod+Shift+1..0)
     Mod+Shift+1 { move-column-to-workspace 1; }
