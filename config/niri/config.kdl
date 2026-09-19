@@ -1,0 +1,257 @@
+// Niri config - migrated from sway
+// Config is live-reloaded on save. Show keybinds: Mod+Shift+/
+
+// Layout: 4px gaps + 2px teal border on focus
+layout {
+    // A single (new) column/workspace centers on screen instead of docked left.
+    always-center-single-column
+
+    gaps 4
+    // Negative struts cancel the outer half of the gap → windows touch screen
+    // edges (zero outer gaps) while keeping 4px between windows.
+    struts {
+        left -4
+        right -4
+        top -4
+        bottom -4
+    }
+
+    // Disable the glow ring, use a border like sway did
+    focus-ring {
+        off
+    }
+
+    border {
+        width 2
+        active-color "#008080"
+        inactive-color "#888888"
+        urgent-color "#008080"
+    }
+}
+
+// Output: ryzen-ws single external 4K monitor (Samsung LU28R55), scale 4/3.
+output "HDMI-A-2" {
+    scale 1.3333333
+}
+
+// Disable the top-left hot-corner (mouse-to-corner opens overview by default).
+gestures {
+    hot-corners {
+        off
+    }
+}
+
+// Named workspaces 1-10 (like sway's numbered workspaces).
+// Declaring them makes the Mod+<number> index keys line up 1:1,
+// and window-rules can pin apps to them.
+workspace "1"
+workspace "2"
+workspace "3"
+workspace "4"
+workspace "5"
+workspace "6"
+workspace "7"
+workspace "8"
+workspace "9"
+workspace "10"
+
+// Pin apps to workspaces (sway's for_window lines)
+window-rule {
+    match app-id="floorp"
+    open-on-workspace "3"
+}
+window-rule {
+    match app-id="Brave-browser"
+    open-on-workspace "1"
+}
+window-rule {
+    match app-id=r#"^(code|Code|vscode|com\.github\.VSCode\.Code)$"#
+    open-on-workspace "5"
+}
+window-rule {
+    match app-id="zcode"
+    open-on-workspace "5"
+}
+window-rule {
+    match app-id="Ferdium"
+    open-on-workspace "9"
+}
+window-rule {
+    match app-id=r#"^(firefox|org\.mozilla\.firefox)$"#
+    open-on-workspace "10"
+}
+window-rule {
+    match app-id="com.github.wwmm.easyeffects"
+    open-on-workspace "10"
+}
+
+// Autostart (sway's exec lines + dotfriedrice's niri services)
+// The session is launched via niri.service (systemd user manager), which
+// BindsTo=graphical-session.target. That activates the target so the
+// xdg-desktop-portal-gnome backend (Requisite=graphical-session.target)
+// can start — otherwise portal calls (GTK file pickers, ghostty) time out
+// and apps launch slowly.
+spawn-at-startup "lxpolkit"
+spawn-at-startup "dunst"
+spawn-at-startup "swaybg" "-m" "fill" "-i" "/home/kk/Pictures/jack-b-sV65Qzj0GQM-unsplash.jpg"
+spawn-at-startup "/usr/bin/gnome-keyring-daemon" "--start" "--components=secrets,ssh,pkcs11"
+// dotfriedrice bar backends. mpd runs as a systemd user service (enabled);
+// mpd-mpris after a beat, elephant + walker service for the launcher.
+spawn-sh-at-startup "sleep 1; exec mpd-mpris"
+// Follow rule-pinned windows: switch to their workspace on open/move
+spawn-at-startup "python3" "/home/kk/.config/niri/ws_follow.py"
+spawn-at-startup "elephant"
+spawn-at-startup "walker" "--gapplication-service"
+spawn-at-startup "waybar"
+// POWER SAVING DISABLED 2026-09-19: GPU DPMS power-off (niri msg action
+// power-off-monitors / ddcutil standby) is unreliable on nvidia-drm
+// modeset=1 — the monitor's wake cycle can leave the display permanently
+// black (NVKMS GEM alloc failures) requiring a hard reset. Idle screen
+// blanking via GPU DPMS must NOT run unattended. Re-enable only with a
+// proven-safe method + explicit user approval. Manual: Mod+Shift+O/P.
+
+// Hide the keybind cheat-sheet popup at login (press Mod+Shift+/ anytime)
+hotkey-overlay {
+    skip-at-startup
+}
+
+// Screenshots: niri saves to this path
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+// Ask apps to drop their client-side title bars (CSDs) when tiled.
+// Apps must be restarted for this to take effect.
+prefer-no-csd
+
+// Keybinds cheat-sheet: floating foot window, anchored top-center.
+// The on-click wrapper waits for the pty to report 40 rows before starting
+// less — foot applies -W after the shell starts, and a less that sees the
+// default 24-row size paints a half page with no later SIGWINCH to fix it.
+window-rule {
+    match app-id="^niri-keybinds$"
+    open-floating true
+    default-floating-position x=0 y=40 relative-to="top"
+}
+
+binds {
+    // Overview: niri can't map the bare Mod key itself — it would intercept
+    // Super and break every Mod+<key> combo. Use Mod+Grave (`) instead.
+    Mod+Grave repeat=false { toggle-overview; }
+
+    // Basics
+    Mod+Return { spawn "ghostty"; }
+    Mod+Q { close-window; }
+    Mod+D { spawn "wofi" "--show=drun"; }
+    Mod+X { spawn "nwg-dock" "-p" "left" "-f" "-x"; }
+    Mod+L repeat=false { spawn "/home/kk/.config/niri/lock.sh"; }
+
+    // Exit niri (shows a confirm dialog like swaynag did)
+    Mod+Shift+E { quit; }
+
+    // Power management (no confirm dialog)
+    Mod+Shift+Q { spawn-sh "niri msg action quit"; }
+    Mod+Shift+X { spawn "systemctl" "poweroff"; }
+    Mod+Shift+B { spawn "systemctl" "reboot"; }
+
+    // Maximize (sway: $mod+m) - window fills the screen edges, waybar stays visible
+    Mod+M { maximize-window-to-edges; }
+    // True fullscreen (sway: $mod+f) - covers everything
+    Mod+F { fullscreen-window; }
+
+    // Monitor off/on (sway used swaymsg output HDMI-A-2 disable/enable)
+    Mod+Shift+O { spawn-sh "niri msg output HDMI-A-2 off"; }
+    Mod+Shift+P { spawn-sh "niri msg output HDMI-A-2 on"; }
+
+    // (gammastep removed: its systemd indicator service conflicted with GNOME startup;
+    //  unbound Mod+Shift+T accordingly)
+
+    // App switcher (sway's app_switcher.sh, niri version)
+    Mod+Shift+Tab { spawn "/home/kk/.config/niri/app_switcher.sh"; }
+
+    // Focus (same vim keys as sway). Mod+L is now the lock key, so focus-right
+    // uses Mod+Right (arrow) only.
+    Mod+H { focus-column-left; }
+    Mod+J { focus-window-down; }
+    Mod+K { focus-window-up; }
+    Mod+Left { focus-column-left; }
+    Mod+Down { focus-window-down; }
+    Mod+Up { focus-window-up; }
+    Mod+Right { focus-column-right; }
+
+    // Move (sway: $mod+Shift+hjkl / arrows)
+    Mod+Shift+H { move-column-left; }
+    Mod+Shift+J { move-window-down; }
+    Mod+Shift+K { move-window-up; }
+    Mod+Shift+L { move-column-right; }
+    Mod+Shift+Left { move-column-left; }
+    Mod+Shift+Down { move-window-down; }
+    Mod+Shift+Up { move-window-up; }
+    Mod+Shift+Right { move-column-right; }
+
+    // Previous workspace (sway: $mod+Tab back_and_forth)
+    Mod+Tab { focus-workspace-previous; }
+
+    // Workspaces 1-10 (sway: $mod+1..0)
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+    Mod+0 { focus-workspace 10; }
+
+    // Move window to workspace + switch (sway: $mod+Shift+1..0)
+    Mod+Shift+1 { move-column-to-workspace 1; }
+    Mod+Shift+2 { move-column-to-workspace 2; }
+    Mod+Shift+3 { move-column-to-workspace 3; }
+    Mod+Shift+4 { move-column-to-workspace 4; }
+    Mod+Shift+5 { move-column-to-workspace 5; }
+    Mod+Shift+6 { move-column-to-workspace 6; }
+    Mod+Shift+7 { move-column-to-workspace 7; }
+    Mod+Shift+8 { move-column-to-workspace 8; }
+    Mod+Shift+9 { move-column-to-workspace 9; }
+    Mod+Shift+0 { move-column-to-workspace 10; }
+
+    // Column display: sway's $mod+w (tabbed)
+    Mod+W { toggle-column-tabbed-display; }
+
+    // Floating: sway's $mod+Shift+space / $mod+space
+    Mod+Shift+Space { toggle-window-floating; }
+    Mod+Space { switch-focus-between-floating-and-tiling; }
+
+    // Resizing (niri equivalent of sway's resize mode + $mod+r):
+    // cycle preset column widths
+    Mod+R { switch-preset-column-width; }
+    Mod+Shift+R { switch-preset-column-width-back; }
+    // fine width adjust, like the resize-mode arrow keys
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
+    // Center the focused column on screen
+    Mod+C { center-column; }
+
+    // Volume (pipewire/wpctl)
+    XF86AudioMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "0.05-"; }
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "0.05+"; }
+    XF86AudioMicMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+
+    // Brightness (same as sway)
+    XF86MonBrightnessDown { spawn "brightnessctl" "set" "5%-"; }
+    XF86MonBrightnessUp { spawn "brightnessctl" "set" "5%+"; }
+
+    // Screenshots: niri built-in UI / full screen / window
+    Print { screenshot; }
+    Mod+S repeat=false { screenshot; }
+    Ctrl+Print { screenshot-screen; }
+    Alt+Print { screenshot-window; }
+    // Area screenshot to file + clipboard (sway's Shift+Print)
+    Shift+Print { spawn-sh "slurp -o | grim -g - - | tee ~/Pictures/$(date +%s).png | wl-copy"; }
+
+    // Show keybind cheat sheet
+    Mod+Shift+Slash { show-hotkey-overlay; }
+
+    // Escape hatch if an app grabs all shortcuts (e.g. remote desktop)
+    Mod+Shift+I { toggle-keyboard-shortcuts-inhibit; }
+}
