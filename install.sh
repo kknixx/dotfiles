@@ -190,9 +190,10 @@ install_config_dir() {
 }
 
 log "3/6 Installing configs"
-install_config_dir "$REPO_DIR/config/waybar" "$TARGET_HOME/.config/waybar"
-install_config_dir "$REPO_DIR/config/niri"   "$TARGET_HOME/.config/niri"
-install_config_dir "$REPO_DIR/config/foot"   "$TARGET_HOME/.config/foot"
+install_config_dir "$REPO_DIR/config/waybar"  "$TARGET_HOME/.config/waybar"
+install_config_dir "$REPO_DIR/config/niri"    "$TARGET_HOME/.config/niri"
+install_config_dir "$REPO_DIR/config/foot"    "$TARGET_HOME/.config/foot"
+install_config_dir "$REPO_DIR/config/ghostty" "$TARGET_HOME/.config/ghostty"
 
 # Rewrite the absolute /home/kk paths baked into config.kdl to this user's $HOME
 KDL="$TARGET_HOME/.config/niri/config.kdl"
@@ -231,7 +232,8 @@ log "Verifying"
 command -v niri && niri --version 2>/dev/null | head -1 || warn "niri not on PATH (check cargo/bin or your distro bin)"
 "$TARGET_HOME/.local/bin/waybar" --version 2>/dev/null | head -1 || true
 echo "Installed:"
-find "$TARGET_HOME/.config/waybar" "$TARGET_HOME/.config/niri" "$TARGET_HOME/.config/foot" \
+find "$TARGET_HOME/.config/waybar" "$TARGET_HOME/.config/niri" \
+     "$TARGET_HOME/.config/foot" "$TARGET_HOME/.config/ghostty" \
   -type f 2>/dev/null | sed "s|$TARGET_HOME|~|" | sort
 for t in "$TARGET_HOME"/.local/bin/*; do [ -f "$t" ] && echo "~/.local/bin/$(basename "$t")"; done
 

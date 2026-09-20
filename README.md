@@ -30,10 +30,10 @@ Then choose the **Niri** session at your login manager.
   [Alexays/Waybar](https://github.com/Alexays/Waybar) at `1687ec7` with 12 local
   commits, including the GPU **ampere** module and the custom module tweaks this
   config relies on). Installed to `~/.local/bin/waybar`.
-- **configs** → `~/.config/{waybar,niri,foot}` (existing files are backed up to
-  `*.pre-install.<date>`)
+- **configs** → `~/.config/{waybar,niri,foot,ghostty}` (existing files are
+  backed up to `*.pre-install.<date>`)
 - **tools** → `~/.local/bin/` (`dfr-launch-or-focus-tui`, `dfr-tz-set`)
-- **wallpaper** → `~/.config/foot`, `~/Pictures/`
+- **wallpaper** → `~/Pictures/`
 
 ## Distro support
 
