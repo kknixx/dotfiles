@@ -126,6 +126,18 @@ if [ "$INSTALL_DEPS" -eq 1 ]; then
       warn "Or install niri from your distro's packages (Arch: 'pacman -S niri')."
     fi
   fi
+
+  # sunsetr (blue-light filter, waybar bluelight module): not packaged in any
+  # official repo, so build from crates.io on every distro (a normal crate,
+  # unlike niri — `cargo install sunsetr` is safe).
+  if ! command -v sunsetr >/dev/null; then
+    if command -v cargo >/dev/null; then
+      log "sunsetr not packaged here — building from crates.io via cargo"
+      cargo install --locked sunsetr
+    else
+      warn "sunsetr not found and no rust toolchain — the waybar bluelight module will be inert."
+    fi
+  fi
 else
   log "1/6 Dependencies (skipped via --no-deps)"
 fi
@@ -194,6 +206,7 @@ install_config_dir "$REPO_DIR/config/waybar"  "$TARGET_HOME/.config/waybar"
 install_config_dir "$REPO_DIR/config/niri"    "$TARGET_HOME/.config/niri"
 install_config_dir "$REPO_DIR/config/foot"    "$TARGET_HOME/.config/foot"
 install_config_dir "$REPO_DIR/config/ghostty" "$TARGET_HOME/.config/ghostty"
+install_config_dir "$REPO_DIR/config/sunsetr"  "$TARGET_HOME/.config/sunsetr"
 
 # Rewrite the absolute /home/kk paths baked into config.kdl to this user's $HOME
 KDL="$TARGET_HOME/.config/niri/config.kdl"

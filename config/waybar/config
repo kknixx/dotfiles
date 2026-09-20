@@ -16,6 +16,7 @@
     "custom/sysinfo",
     "mpd",
     "group/tray-expander",
+    "custom/bluelight",
     "pulseaudio",
     "bluetooth",
     "network",
@@ -231,5 +232,12 @@
     "interval": 10,
     "on-click": "dfr-launch-or-focus-tui monitor",
     "on-click-right": "dfr-launch-or-focus-tui btop"
+  },
+
+  "custom/bluelight": {
+    "format": "{text}",
+    "exec": "$HOME/.config/waybar/scripts/bluelight.sh",
+    "interval": 5,
+    "on-click": "$HOME/.config/waybar/scripts/bluelight.sh toggle"
   }
 }

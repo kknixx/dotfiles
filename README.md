@@ -30,8 +30,11 @@ Then choose the **Niri** session at your login manager.
   [Alexays/Waybar](https://github.com/Alexays/Waybar) at `1687ec7` with 12 local
   commits, including the GPU **ampere** module and the custom module tweaks this
   config relies on). Installed to `~/.local/bin/waybar`.
-- **configs** → `~/.config/{waybar,niri,foot,ghostty}` (existing files are
-  backed up to `*.pre-install.<date>`)
+- **configs** → `~/.config/{waybar,niri,foot,ghostty,sunsetr}` (existing files
+  are backed up to `*.pre-install.<date>`)
+- **sunsetr** (blue-light filter, installed via cargo on all distros) + the
+  waybar `bluelight` toggle module that starts/stops it
+  (`~/.config/sunsetr/`)
 - **tools** → `~/.local/bin/` (`dfr-launch-or-focus-tui`, `dfr-tz-set`)
 - **wallpaper** → `~/Pictures/`
 
@@ -42,10 +45,11 @@ Then choose the **Niri** session at your login manager.
 - **Arch**: everything bar a few extras is in the official repos; the rest
   (`elephant-bin`, `elephant-niriactions-bin`, `bluetui`, `impala`, `monitor`,
   `lxpolkit`) come from AUR via `yay`/`paru` if present.
-- **Other distros**: niri falls back to building from source
-  (`cargo install --git https://github.com/YaLTeR/niri`) if your distro doesn't
-  package it. (Do **not** `cargo install niri` — the crates.io name is a
-  squatted placeholder.)
+- **Everywhere**: niri and sunsetr are not in the official repos (niri may be
+  packaged on some), so both fall back to cargo. niri must build from git
+  (`cargo install --git https://github.com/YaLTeR/niri`) — do **not**
+  `cargo install niri`, the crates.io name is a squatted placeholder. sunsetr
+  is a normal crate: `cargo install sunsetr`.
 
 ## Dependencies (manual list, for `--no-deps`)
 

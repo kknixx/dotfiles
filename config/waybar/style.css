@@ -96,3 +96,9 @@ tooltip * {
 #custom-menu label {
   font-size: 20px;
 }
+
+/* bluelight: md-weather_sunny has a compact bounding box, bump it up to read
+   at the same visual size as the bar's other icons */
+#custom-bluelight label {
+  font-size: 19px;
+}

@@ -1,0 +1,14 @@
+# Sunsetr — manual blue-light filter toggle (waybar bluelight module)
+# Static mode: holds one constant warmth. ON = `sunsetr --background`,
+# OFF = `sunsetr stop` (restores neutral display).
+backend = "auto"
+transition_mode = "static"
+
+smoothing = true
+startup_duration = 0.5
+shutdown_duration = 0.5
+
+# Warmth: 4500 K (GNOME Night Light default is 3500 K; user prefers cooler).
+# Higher Kelvin = less orange tint. No dimming.
+static_temp = 4500
+static_gamma = 100
