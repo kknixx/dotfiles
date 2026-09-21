@@ -103,6 +103,7 @@ spawn-at-startup "python3" "/home/kk/.config/niri/ws_follow.py"
 spawn-at-startup "elephant"
 spawn-at-startup "walker" "--gapplication-service"
 spawn-at-startup "waybar"
+spawn-at-startup "cairo-dock"
 // POWER SAVING DISABLED 2026-09-19: GPU DPMS power-off (niri msg action
 // power-off-monitors / ddcutil standby) is unreliable on nvidia-drm
 // modeset=1 — the monitor's wake cycle can leave the display permanently
@@ -141,7 +142,12 @@ binds {
     Mod+Return { spawn "ghostty"; }
     Mod+Q { close-window; }
     Mod+D { spawn "wofi" "--show=drun"; }
-    Mod+X { spawn "nwg-dock" "-p" "left" "-f" "-x"; }
+    // Pop cairo-dock up / tuck it away. DBus ShowDock verified empirically on
+    // 3.6.102 to flip visibility on every call (argument ignored) — no
+    // restart, no config change, independent of Mod+P dockmode.
+    Mod+X repeat=false { spawn-sh "gdbus call --session --dest org.cairodock.CairoDock --object-path /org/cairodock/CairoDock --method org.cairodock.CairoDock.ShowDock 6"; }
+    // Toggle cairo-dock between overlay and reserved-space dock mode
+    Mod+P { spawn "dockmode"; }
     Mod+L repeat=false { spawn "/home/kk/.config/niri/lock.sh"; }
 
     // Exit niri (shows a confirm dialog like swaynag did)

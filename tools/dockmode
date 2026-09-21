@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Toggle cairo-dock between the configured view and reserved-space dock mode.
+# Dock mode makes niri shrink the work area so windows never overlap the dock.
+set -euo pipefail
+
+CONF="$HOME/.config/cairo-dock/current_theme/cairo-dock.conf"
+ONT=".on-top"     # always-on-top: overlays windows (current setting: visibility=5)
+DOCK=".dock"      # reserve space: niri gives the dock its own screen area
+
+# Init the two variants from the live config the first time we toggle.
+# "configured" = the user's saved dock settings (overlay, visibility=5);
+# "dock" = the same but with "Reserve space" forced on for no-overlap.
+if [[ ! -e "$CONF$ONT" ]]; then cp "$CONF" "$CONF$ONT"; fi
+if [[ ! -e "$CONF$DOCK" ]]; then cp "$CONF" "$CONF$DOCK"; sed -i 's/^visibility=.*$/visibility=1/' "$CONF$DOCK"; fi
+
+# The active variant is whichever matches the live config.
+if   cmp -s "$CONF" "$CONF$ONT"; then dst="$CONF$DOCK"; label="dock mode (reserved space)"
+elif cmp -s "$CONF" "$CONF$DOCK"; then dst="$CONF$ONT"; label="configured mode (overlay)"
+else echo "dockmode: config modified externally; please set visibility back" >&2; exit 1; fi
+
+cp "$dst" "$CONF"
+
+# Restart the dock so it picks up the new mode. setsid -f double-forks so
+# the dock survives this script exiting (needed for the niri hotkey path).
+pkill -x cairo-dock 2>/dev/null || true
+# Wait for a clean shutdown: a still-live instance holds the DBus name and
+# makes the relaunch abort with "already running".
+for _ in {1..20}; do pgrep -x cairo-dock >/dev/null || break; sleep 0.5; done
+setsid -f "${CAIRO_DOCK:-cairo-dock}" "$@" </dev/null >/dev/null 2>&1
+
+notify-send -a dockmode "cairo-dock: $label" 2>/dev/null || true
