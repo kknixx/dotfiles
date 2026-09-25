@@ -1,19 +1,19 @@
 // Niri config - migrated from sway
-// Config is live-reloaded on save. Show keybinds: Mod+Shift+/
+// Config is live-reloaded on save. Show keybinds: Mod+/
 
-// Layout: 4px gaps + 2px teal border on focus
+// Layout: 2px gaps + 2px teal border on focus
 layout {
     // A single (new) column/workspace centers on screen instead of docked left.
     always-center-single-column
 
-    gaps 4
+    gaps 2
     // Negative struts cancel the outer half of the gap → windows touch screen
-    // edges (zero outer gaps) while keeping 4px between windows.
+    // edges (zero outer gaps) while keeping 2px between windows.
     struts {
-        left -4
-        right -4
-        top -4
-        bottom -4
+        left -2
+        right -2
+        top -2
+        bottom -2
     }
 
     // Disable the glow ring, use a border like sway did
@@ -85,6 +85,25 @@ window-rule {
     open-on-workspace "10"
 }
 
+// State-dependent corner radius for all apps (native equivalent of
+// Nathanaelrc/rounded-windows, but focus-aware): the focused window's TOP
+// corners are rounded, unfocused windows go fully square.
+// geometry-corner-radius sets the radius (TL TR BR BL); clip-to-geometry
+// force-rounds the window CONTENT, not just the border/glow. is-active
+// matches the xdg Activated state, and niri re-evaluates window-rules on
+// every focus change, so this flips live when focus moves.
+window-rule {
+    match is-active=true
+    // Top corners only (TL TR BR BL) — bottom stays square.
+    geometry-corner-radius 14 14 0 0
+    clip-to-geometry true
+}
+window-rule {
+    match is-active=false
+    geometry-corner-radius 0
+    clip-to-geometry false
+}
+
 // Autostart (sway's exec lines + dotfriedrice's niri services)
 // The session is launched via niri.service (systemd user manager), which
 // BindsTo=graphical-session.target. That activates the target so the
@@ -111,7 +130,7 @@ spawn-at-startup "cairo-dock"
 // blanking via GPU DPMS must NOT run unattended. Re-enable only with a
 // proven-safe method + explicit user approval. Manual: Mod+Shift+O/P.
 
-// Hide the keybind cheat-sheet popup at login (press Mod+Shift+/ anytime)
+// Hide the keybind cheat-sheet popup at login (press Mod+/ anytime)
 hotkey-overlay {
     skip-at-startup
 }
@@ -193,6 +212,13 @@ binds {
     Mod+Shift+Up { move-window-up; }
     Mod+Shift+Right { move-column-right; }
 
+    // Clear all notifications (dunst)
+    Mod+Backspace repeat=false { spawn-sh "dunstctl close-all"; }
+
+    // Pull the neighboring column's window into this column's bottom (and back out)
+    Mod+Shift+Ctrl+Left { consume-or-expel-window-left; }
+    Mod+Shift+Ctrl+Right { consume-or-expel-window-right; }
+
     // Previous workspace (sway: $mod+Tab back_and_forth)
     Mod+Tab { focus-workspace-previous; }
 
@@ -255,8 +281,9 @@ binds {
     // Area screenshot to file + clipboard (sway's Shift+Print)
     Shift+Print { spawn-sh "slurp -o | grim -g - - | tee ~/Pictures/$(date +%s).png | wl-copy"; }
 
-    // Show keybind cheat sheet
-    Mod+Shift+Slash { show-hotkey-overlay; }
+    // Show keybind cheat sheet (custom — parses live config.kdl via
+    // keybinds-help.py; niri's built-in hotkey-overlay only lists inbuilt actions)
+    Mod+Slash { spawn "/home/kk/.config/niri/keybinds-help.sh"; }
 
     // Escape hatch if an app grabs all shortcuts (e.g. remote desktop)
     Mod+Shift+I { toggle-keyboard-shortcuts-inhibit; }
