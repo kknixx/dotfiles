@@ -32,8 +32,8 @@
     "format": ""
   },
   "clock": {
-    "format": "{:%I:%M %p %Z :: %a %b %d %Y}",
-    "format-alt": "{:%H:%M %Z :: %a %b %d %Y}",
+    "format": "{:%H:%M:%S %a, %b %d %Y}",
+    "format-alt": "{:%H:%M %Z}",
     "tooltip": true,
     "tooltip-format": "<tt>{calendar}</tt>",
     "timezones": [
