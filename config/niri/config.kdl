@@ -1,7 +1,7 @@
 // Niri config - migrated from sway
 // Config is live-reloaded on save. Show keybinds: Mod+/
 
-// Layout: 2px gaps + 2px teal border on focus
+// Layout: 2px gaps + 2px cyber-pink border + pink glow on focus
 layout {
     // A single (new) column/workspace centers on screen instead of docked left.
     always-center-single-column
@@ -23,9 +23,20 @@ layout {
 
     border {
         width 2
-        active-color "#008080"
-        inactive-color "#888888"
-        urgent-color "#008080"
+        active-color "#AF1680"
+        inactive-color "rgba(0, 0, 0, 0)"
+        urgent-color "#AF1680"
+    }
+
+    // Soft pink halo on the focused window (native Gaussian box-shadow).
+    shadow {
+        on
+        offset x=0 y=0
+        softness 24
+        spread 4
+        draw-behind-window true
+        color "rgba(175, 22, 128, 0.55)"
+        inactive-color "rgba(175, 22, 128, 0.15)"
     }
 }
 
