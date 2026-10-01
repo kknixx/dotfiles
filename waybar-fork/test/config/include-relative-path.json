@@ -1,5 +1,0 @@
-{
-  "include": ["modules/*.jsonc"],
-  "position": "top",
-  "nullOption": null
-}

@@ -44,12 +44,17 @@
   background-color: #ffffff;
 }
 
-/* Empty (no-window) workspaces: dim them, but keep them in the row.
-   Keeping them (rather than hiding via display-condition=only-populated)
-   means the row order never reflows, so the active pill always tracks the
-   correct workspace without jumping. */
+/* Dynamic workspaces on stock waybar: stock 0.15's niri/workspaces has no
+   hide-empty option (it tags buttons with the "empty" class only), so hide
+   empty non-active workspaces via CSS — zero-size buttons vanish from the
+   row (GTK boxes skip hidden/zero-size children). :not(.active) matters:
+   the ACTIVE workspace can be empty and its pill must stay visible. */
 #workspaces button.empty:not(.active) {
-  background-color: rgba(255, 255, 255, 0.18);
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
 }
 
 /* Labels are empty (no numbers), but an empty label still requests full font

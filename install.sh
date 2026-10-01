@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# install.sh — sets up niri + the waybar fork + all configs from this repo.
+# install.sh — sets up niri + official waybar + all configs from this repo.
 #
 # Usage:
-#   ./install.sh              # full install (deps, waybar fork, configs, tools, wallpaper)
+#   ./install.sh              # full install (deps, waybar, configs, tools, wallpaper)
 #   ./install.sh --gtk        # also install the GTK settings (Espectro/Pop theme refs)
 #   ./install.sh --no-deps    # skip system package install (you handle deps)
 #   ./install.sh --home DIR   # install into DIR instead of $HOME (testing)
@@ -82,30 +82,22 @@ if [ "$INSTALL_DEPS" -eq 1 ]; then
       pkg_install niri foot ghostty wofi nwg-dock grim slurp wl-clipboard swaylock \
         imagemagick brightnessctl jq curl playerctl mpd mpd-mpris \
         libmpdclient bluez networkmanager ttf-cascadia-mono-nerd \
-        dunst swaybg gnome-keyring
+        dunst swaybg gnome-keyring waybar
       # AUR-only extras: app switcher TUIs, niri actions provider, polkit agent
-      # (No waybar package here — we build the vendored fork ourselves in step 2.)
       aur_install elephant-bin elephant-niriactions-bin bluetui impala monitor lxpolkit
       ;;
     dnf|yum)
       pkg_install niri foot wofi nwg-dock grim slurp wl-clipboard swaylock \
         ImageMagick brightnessctl jq curl mpd mpd-mpris dbusmenu-gtk3 \
-        dunst swaybg gnome-keyring ttf-cascadia \
-        glib2-devel gtkmm3-devel gtk-layer-shell-devel libpipewire-devel \
-        playerctl libnl3-devel jsoncpp-devel libevdev-devel libinput-devel \
-        jack2-devel wireplumber-devel upower-devel fmt-devel spdlog-devel \
-        systemd-devel libmpdclient-devel
+        dunst swaybg gnome-keyring waybar ttf-cascadia
       warn "AUR-only extras (elephant, bluetui, impala, monitor, lxpolkit) have no dnf build yet — see README"
       ;;
     apt)
       pkg_install niri foot ghostty wofi nwg-dock grim slurp wl-clipboard swaylock \
         imagemagick brightnessctl jq curl playerctl mpd mpd-mpris \
-        dunst swaybg gnome-keyring \
-        libgtkmm-3.0-dev libgtk-layer-shell-dev libpipewire-0.3-dev \
-        libjsoncpp-dev libnl-3-dev libnl-genl-3-dev libevdev-dev libinput-dev \
-        libjack-jackd2-dev libwireplumber-0.5-dev libupower-glib-dev \
-        libfmt-dev libspdlog-dev libsystemd-dev libmpdclient-dev libdbusmenu-gtk3-dev
+        dunst swaybg gnome-keyring waybar
       warn "niri may not be packaged on your release yet — the cargo fallback below covers it"
+      warn "waybar may not be packaged on your release yet — install from source if so"
       warn "lxpolkit (polkit agent) is AUR/Flathub-only; install or skip"
       ;;
     *)
@@ -143,49 +135,14 @@ else
 fi
 
 # ---------------------------------------------------------------- 2. waybar
-log "2/6 Building the waybar fork (vendored in waybar-fork/)"
-
-build_waybar_deps() {
-  case "$PKG" in
-    pacman)
-      pkg_install base-devel meson ninja glib2 gtkmm3 gtk-layer-shell \
-        libpipewire playerctl mpd libmpdclient libnl jsoncpp libevdev \
-        libinput libjack wireplumber upower fmt spdlog libsystemd \
-        dbusmenu-gtk libpulse libmm-glib
-      ;;
-    dnf|yum)
-      sudo dnf install -y base-devel meson ninja gtkmm3-devel gtk-layer-shell-devel \
-        libpipewire-devel jsoncpp-devel libnl3-devel libevdev-devel libinput-devel \
-        jack2-devel wireplumber-devel upower-devel fmt-devel spdlog-devel \
-        systemd-devel mpd-devel libmpdclient-devel dbusmenu-gtk3-devel
-      ;;
-    apt)
-      sudo apt-get install -y build-essential meson ninja-build g++ \
-        libglib2.0-dev libgtkmm-3.0-dev libgtk-layer-shell-dev libpipewire-0.3-dev \
-        libjsoncpp-dev libnl-3-dev libnl-genl-3-dev libevdev-dev libinput-dev \
-        libjack-jackd2-dev libwireplumber-0.5-dev libupower-glib-dev \
-        libfmt-dev libspdlog-dev libsystemd-dev libmpdclient-dev libdbusmenu-gtk3-dev
-      ;;
-    *) warn "install waybar build deps manually (meson, ninja, gtkmm3, gtk-layer-shell, libpipewire, jsoncpp, libnl, libevdev, libinput, libjack, wireplumber, upower, fmt, spdlog, libsystemd, libmpdclient, dbusmenu-gtk3)" ;;
-  esac
-}
-[ "$INSTALL_DEPS" -eq 1 ] && build_waybar_deps || true
-
-SRC_DIR="$REPO_DIR/waybar-fork"
-[ -f "$SRC_DIR/meson.build" ] || die "waybar-fork/meson.build not found — is the repo complete?"
-
-# Build in a scratch copy so the repo tree stays clean.
-# Optional, hard-to-satisfy features auto-disable if their libs are missing,
-# but force the ones we do not ship so the build is deterministic.
-BUILD_ROOT="$(mktemp -d)"
-trap 'rm -rf "$BUILD_ROOT"' EXIT
-BUILD_DIR="$BUILD_ROOT/build"
-cp -a "$SRC_DIR" "$BUILD_ROOT/src"
-meson setup -Dtests=disabled -Dman-pages=disabled -Dcava=disabled -Dgps=disabled \
-  -Dwwan=disabled -Dlogin-proxy=disabled -Dsndio=disabled -Drfkill=disabled \
-  "$BUILD_ROOT/src" "$BUILD_DIR"
-meson compile -C "$BUILD_DIR"
-install -Dm755 "$BUILD_DIR/waybar" "$TARGET_HOME/.local/bin/waybar"
+# ---------------------------------------------------------------- 2. waybar
+# Official distro waybar (0.15+ has the niri/workspaces module). No fork, no
+# build step — it ships as a plain package and provides everything the config
+# uses (custom modules via exec+interval, niri/workspaces, tray, etc.).
+log "2/6 Confirming official waybar package"
+if [ "$INSTALL_DEPS" -eq 1 ] && [ -n "$PKG" ] && ! command -v waybar >/dev/null; then
+  warn "waybar not found on PATH after the package step — install it from your distro's repos"
+fi
 
 # ------------------------------------------------------------- 3. waybar cfg
 install_config_dir() {
@@ -243,7 +200,7 @@ fi
 
 log "Verifying"
 command -v niri && niri --version 2>/dev/null | head -1 || warn "niri not on PATH (check cargo/bin or your distro bin)"
-"$TARGET_HOME/.local/bin/waybar" --version 2>/dev/null | head -1 || true
+command -v waybar >/dev/null && waybar --version 2>/dev/null | head -1 || warn "waybar not on PATH"
 echo "Installed:"
 find "$TARGET_HOME/.config/waybar" "$TARGET_HOME/.config/niri" \
      "$TARGET_HOME/.config/foot" "$TARGET_HOME/.config/ghostty" \

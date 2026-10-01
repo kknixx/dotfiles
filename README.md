@@ -1,15 +1,16 @@
-# dotfiles — niri + waybar (ampere fork) + configs
+# dotfiles — niri + waybar + configs
 
 Reproducible setup for a niri wayland session with a customized waybar:
-live system stats (CPU/MEM/temps), network arrows, floating keybinding
-cheat-sheet window, power menu, app switching, and more.
+live system stats (CPU/MEM/temps), network arrows, Bluetooth device
+batteries, blue-light toggle, floating keybinding cheat-sheet window,
+power menu, app switching, and more.
 
 ## Quick start
 
 ```sh
 git clone https://github.com/kknixx/dotfiles
 cd dotfiles
-./install.sh            # deps + build waybar fork + configs + tools + wallpaper
+./install.sh            # deps + configs + tools + wallpaper (waybar from your distro's repos)
 # ./install.sh --gtk    # also install GTK settings (Espectro/Pop theme refs)
 ```
 
@@ -26,10 +27,8 @@ Then choose the **Niri** session at your login manager.
 ## What gets installed
 
 - **niri** (scrollable-tiling Wayland compositor)
-- **waybar** — built from the vendored fork in `waybar-fork/` (a fork of
-  [Alexays/Waybar](https://github.com/Alexays/Waybar) at `1687ec7` with 12 local
-  commits, including the GPU **ampere** module and the custom module tweaks this
-  config relies on). Installed to `~/.local/bin/waybar`.
+- **waybar** — the official distro package (0.15+; needs the `niri/workspaces`
+  module). No fork, no build step.
 - **configs** → `~/.config/{waybar,niri,foot,ghostty,sunsetr}` (existing files
   are backed up to `*.pre-install.<date>`)
 - **sunsetr** (blue-light filter, installed via cargo on all distros) + the
@@ -55,13 +54,9 @@ Then choose the **Niri** session at your login manager.
 
 Core: `niri foot ghostty wofi nwg-dock grim slurp wl-clipboard swaylock
 imagemagick brightnessctl jq curl playerctl mpd mpd-mpris dunst swaybg
-gnome-keyring bluez networkmanager`
+gnome-keyring bluez networkmanager waybar` (waybar 0.15+ from your distro)
 
 Bar font: `ttf-cascadia-mono-nerd` (CaskaydiaMono Nerd Font)
-
-Waybar build (meson + ninja + dev libs): `gtkmm3 gtk-layer-shell libpipewire
-playerctl mpd libmpdclient libnl libevdev libinput libjack wireplumber upower
-fmt spdlog libsystemd dbusmenu-gtk libpulse libmm-glib jsoncpp glib2`
 
 AUR extras: `elephant-bin elephant-niriactions-bin bluetui impala monitor lxpolkit`
 
