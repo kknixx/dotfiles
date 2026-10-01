@@ -79,17 +79,25 @@
 }
 
 #network {
+  margin-left: 4px;
   margin-right: 8px;
 }
 
 #custom-expand-icon {
-  margin-left: 18px;
+  margin-left: 4px;
   margin-right: 4px;
 }
 
 #custom-power {
   margin: 0 16px 0 12px;
 }
+
+/* btbat: connected-BT-device battery segments (empty when nothing paired).
+   NOTE: id selectors here (#custom-btbat-audio) never matched in this
+   waybar fork — margins were inert. Spacing lives in the script's label
+   (padding spaces) instead. Also: this build applies CSS only on full
+   restart; SIGUSR1 crashes it, SIGUSR2 reloads config only:
+   pkill waybar; waybar -c ~/.config/waybar/config & */
 
 window#waybar {
   background-color: rgba(0, 0, 0, 0.70);

@@ -8,16 +8,17 @@
     "niri/workspaces"
   ],
   "modules-center": [
-    "clock",
-    "custom/help"
+    "clock"
   ],
   "modules-right": [
-    "custom/sysinfo",
+    // "custom/sysinfo",
     "mpd",
     "group/tray-expander",
     "custom/bluelight",
     "pulseaudio",
     "bluetooth",
+    "custom/btbat#audio",
+    "custom/btbat#input",
     "network",
     "custom/netinfo",
     "cpu",
@@ -32,8 +33,8 @@
     "format": ""
   },
   "clock": {
-    "format": "{:%H:%M:%S %a, %b %d %Y}",
-    "format-alt": "{:%H:%M %Z}",
+    "format": "{:%b %d %H:%M}",
+    "format-alt": "{:%a, %b %d %Y %H:%M}",
     "tooltip": true,
     "tooltip-format": "<tt>{calendar}</tt>",
     "timezones": [
@@ -117,6 +118,21 @@
     "format-connected": "\uf294",
     "tooltip-format": "Devices connected: {num_connections}",
     "on-click": "sh -c 'dfr-launch-or-focus-tui bluetui || notify-send \"Bluetooth adapter not found\"'"
+  },
+  // split so each hover tooltip only lists its own devices
+  "custom/btbat#audio": {
+    "format": "{text}",
+    "exec": "$HOME/.config/waybar/scripts/btbat.sh audio",
+    "interval": 30,
+    "tooltip": true,
+    "on-click": "dfr-launch-or-focus-tui bluetui"
+  },
+  "custom/btbat#input": {
+    "format": "{text}",
+    "exec": "$HOME/.config/waybar/scripts/btbat.sh other",
+    "interval": 30,
+    "tooltip": true,
+    "on-click": "dfr-launch-or-focus-tui bluetui"
   },
   "network": {
     "format-icons": [
