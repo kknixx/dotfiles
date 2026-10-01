@@ -44,6 +44,17 @@
   background-color: #ffffff;
 }
 
+/* Safety net: the ampere fork's niri/workspaces module hides empty
+   workspaces via "display-condition": "only-populated", but the stock
+   distro waybar ignores that key — and it still tags empty buttons with
+   the "empty" class, so hide them here regardless of which binary runs. */
+#workspaces button.empty {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  background-color: transparent;
+}
+
 /* Labels are empty (no numbers), but an empty label still requests full font
    height and stretches the dot — collapse it. */
 #workspaces button label {
