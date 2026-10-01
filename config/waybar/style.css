@@ -47,8 +47,10 @@
 /* Safety net: the ampere fork's niri/workspaces module hides empty
    workspaces via "display-condition": "only-populated", but the stock
    distro waybar ignores that key — and it still tags empty buttons with
-   the "empty" class, so hide them here regardless of which binary runs. */
-#workspaces button.empty {
+   the "empty" class, so hide them here regardless of which binary runs.
+   :not(.active) matters: the ACTIVE workspace can be empty (just switched
+   to it / focus on another output), and its pill must stay visible. */
+#workspaces button.empty:not(.active) {
   min-width: 0;
   min-height: 0;
   margin: 0;
