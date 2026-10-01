@@ -29,7 +29,6 @@
     "on-click": "activate",
     "on-click-right": "niri msg action toggle-overview",
     "on-click-middle": "walker --height 980 --width 980 --provider niriactions",
-    "display-condition": "only-populated",
     "format": ""
   },
   "clock": {
