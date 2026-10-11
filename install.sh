@@ -82,7 +82,7 @@ if [ "$INSTALL_DEPS" -eq 1 ]; then
       pkg_install niri foot ghostty wofi nwg-dock grim slurp wl-clipboard swaylock \
         imagemagick brightnessctl jq curl playerctl mpd mpd-mpris \
         libmpdclient bluez networkmanager ttf-cascadia-mono-nerd \
-        dunst swaybg gnome-keyring waybar
+        dunst swaybg gnome-keyring waybar keyd
       # AUR-only extras: app switcher TUIs, niri actions provider, polkit agent
       aur_install elephant-bin elephant-niriactions-bin bluetui impala monitor lxpolkit
       ;;
@@ -173,6 +173,21 @@ chmod +x "$TARGET_HOME/.config/waybar/power-menu.sh" \
          "$TARGET_HOME/.config/waybar/scripts/"*.sh \
          "$TARGET_HOME/.config/niri/"*.sh \
          "$TARGET_HOME/.config/niri/keybinds-help.py" 2>/dev/null || true
+
+# keyd: tapping Super alone toggles the niri overview (synthesizes Mod+Grave;
+# niri cannot bind a lone modifier key). Optional — without it, Mod+Grave
+# still works and Super stays a plain modifier.
+if command -v keyd >/dev/null; then
+  if sudo mkdir -p /etc/keyd && \
+     sudo cp -a "$REPO_DIR/config/keyd/default.conf" /etc/keyd/default.conf && \
+     sudo systemctl enable --now keyd.service; then
+    echo "keyd: installed + enabled (tap Super = overview)"
+  else
+    warn "keyd config/enable failed — Super tap stays a plain modifier"
+  fi
+else
+  warn "keyd not installed — Super tap won't toggle the overview (Mod+Grave still works)"
+fi
 
 # ---------------------------------------------------------------- 4. tools
 log "4/6 Installing helper tools"

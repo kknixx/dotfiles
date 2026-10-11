@@ -164,8 +164,9 @@ window-rule {
 }
 
 binds {
-    // Overview: niri can't map the bare Mod key itself — it would intercept
-    // Super and break every Mod+<key> combo. Use Mod+Grave (`) instead.
+    // Overview: bound to Mod+Grave (`). Tapping Super alone triggers this via
+    // keyd (/etc/keyd/default.conf: leftmeta tap -> M-grave); niri itself
+    // cannot bind a lone modifier key (niri discussion #4142).
     Mod+Grave repeat=false { toggle-overview; }
 
     // Basics

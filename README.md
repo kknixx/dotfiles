@@ -54,11 +54,15 @@ Then choose the **Niri** session at your login manager.
 
 Core: `niri foot ghostty wofi nwg-dock grim slurp wl-clipboard swaylock
 imagemagick brightnessctl jq curl playerctl mpd mpd-mpris dunst swaybg
-gnome-keyring bluez networkmanager waybar` (waybar 0.15+ from your distro)
+gnome-keyring bluez networkmanager waybar keyd` (waybar 0.15+ from your distro)
 
 Bar font: `ttf-cascadia-mono-nerd` (CaskaydiaMono Nerd Font)
 
 AUR extras: `elephant-bin elephant-niriactions-bin bluetui impala monitor lxpolkit`
+
+Super-tap overview: `keyd` (`config/keyd/default.conf` — a bare Super tap
+synthesizes Mod+Grave, which fires the overview bind; install.sh sets it up
+system-wide). Optional — Mod+Grave works without it.
 
 ## Notes
 
