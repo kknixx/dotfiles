@@ -132,7 +132,9 @@ spawn-sh-at-startup "sleep 1; exec mpd-mpris"
 spawn-at-startup "python3" "/home/kk/.config/niri/ws_follow.py"
 spawn-at-startup "elephant"
 spawn-at-startup "walker" "--gapplication-service"
-spawn-at-startup "waybar"
+// Local waybar build (upstream + niri/workspace-strip patch). Absolute path
+// so the stock distro binary is never picked up by PATH.
+spawn-at-startup "/home/kk/.local/bin/waybar"
 spawn-at-startup "cairo-dock"
 // POWER SAVING DISABLED 2026-09-19: GPU DPMS power-off (niri msg action
 // power-off-monitors / ddcutil standby) is unreliable on nvidia-drm

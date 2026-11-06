@@ -10,7 +10,7 @@ power menu, app switching, and more.
 ```sh
 git clone https://github.com/kknixx/dotfiles
 cd dotfiles
-./install.sh            # deps + configs + tools + wallpaper (waybar from your distro's repos)
+./install.sh            # deps + waybar build (upstream+patch) + configs + tools + wallpaper
 # ./install.sh --gtk    # also install GTK settings (Espectro/Pop theme refs)
 ```
 
@@ -27,8 +27,12 @@ Then choose the **Niri** session at your login manager.
 ## What gets installed
 
 - **niri** (scrollable-tiling Wayland compositor)
-- **waybar** — the official distro package (0.15+; needs the `niri/workspaces`
-  module). No fork, no build step.
+- **waybar** — built locally from pinned upstream **0.16.0** plus
+  `patches/waybar-workspace-strip.patch`, which adds the
+  `niri/workspace-strip` module: embossed numbered tiles showing the real app
+  icons of each workspace, in the bar centre before the clock. Installed to
+  `~/.local/bin/waybar` and started by niri via that absolute path, so the
+  distro waybar is never used.
 - **configs** → `~/.config/{waybar,niri,foot,ghostty,sunsetr}` (existing files
   are backed up to `*.pre-install.<date>`)
 - **sunsetr** (blue-light filter, installed via cargo on all distros) + the
@@ -54,7 +58,10 @@ Then choose the **Niri** session at your login manager.
 
 Core: `niri foot ghostty wofi nwg-dock grim slurp wl-clipboard swaylock
 imagemagick brightnessctl jq curl playerctl mpd mpd-mpris dunst swaybg
-gnome-keyring bluez networkmanager waybar keyd` (waybar 0.15+ from your distro)
+gnome-keyring bluez networkmanager keyd`
+Waybar build: `meson ninja gtkmm3 gtk-layer-shell glib2 libpipewire jsoncpp
+libnl libevdev libinput libjack wireplumber upower fmt spdlog libsystemd
+libmpdclient dbusmenu-gtk3 git`
 
 Bar font: `ttf-cascadia-mono-nerd` (CaskaydiaMono Nerd Font)
 

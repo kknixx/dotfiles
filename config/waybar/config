@@ -8,6 +8,7 @@
     "niri/workspaces"
   ],
   "modules-center": [
+    "niri/workspace-strip",
     "clock"
   ],
   "modules-right": [
@@ -30,6 +31,9 @@
     "on-click-right": "niri msg action toggle-overview",
     "on-click-middle": "walker --height 980 --width 980 --provider niriactions",
     "format": ""
+  },
+  "niri/workspace-strip": {
+    "icon-size": 16
   },
   "clock": {
     "format": "{:%b %d %H:%M}",

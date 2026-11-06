@@ -82,22 +82,21 @@ if [ "$INSTALL_DEPS" -eq 1 ]; then
       pkg_install niri foot ghostty wofi nwg-dock grim slurp wl-clipboard swaylock \
         imagemagick brightnessctl jq curl playerctl mpd mpd-mpris \
         libmpdclient bluez networkmanager ttf-cascadia-mono-nerd \
-        dunst swaybg gnome-keyring waybar keyd
+        dunst swaybg gnome-keyring keyd
       # AUR-only extras: app switcher TUIs, niri actions provider, polkit agent
       aur_install elephant-bin elephant-niriactions-bin bluetui impala monitor lxpolkit
       ;;
     dnf|yum)
       pkg_install niri foot wofi nwg-dock grim slurp wl-clipboard swaylock \
         ImageMagick brightnessctl jq curl mpd mpd-mpris dbusmenu-gtk3 \
-        dunst swaybg gnome-keyring waybar ttf-cascadia
+        dunst swaybg gnome-keyring ttf-cascadia
       warn "AUR-only extras (elephant, bluetui, impala, monitor, lxpolkit) have no dnf build yet — see README"
       ;;
     apt)
       pkg_install niri foot ghostty wofi nwg-dock grim slurp wl-clipboard swaylock \
         imagemagick brightnessctl jq curl playerctl mpd mpd-mpris \
-        dunst swaybg gnome-keyring waybar
+        dunst swaybg gnome-keyring
       warn "niri may not be packaged on your release yet — the cargo fallback below covers it"
-      warn "waybar may not be packaged on your release yet — install from source if so"
       warn "lxpolkit (polkit agent) is AUR/Flathub-only; install or skip"
       ;;
     *)
@@ -136,12 +135,60 @@ fi
 
 # ---------------------------------------------------------------- 2. waybar
 # ---------------------------------------------------------------- 2. waybar
-# Official distro waybar (0.15+ has the niri/workspaces module). No fork, no
-# build step — it ships as a plain package and provides everything the config
-# uses (custom modules via exec+interval, niri/workspaces, tray, etc.).
-log "2/6 Confirming official waybar package"
-if [ "$INSTALL_DEPS" -eq 1 ] && [ -n "$PKG" ] && ! command -v waybar >/dev/null; then
-  warn "waybar not found on PATH after the package step — install it from your distro's repos"
+# Built locally from a pinned upstream tag plus patches/waybar-workspace-strip.patch
+# (adds the niri/workspace-strip module: embossed tiles with real app icons).
+# Installed to ~/.local/bin/waybar — NOT the distro package, so there is exactly
+# one waybar binary and niri spawns it by absolute path.
+log "2/6 Building waybar (upstream 0.16.0 + workspace-strip patch)"
+
+build_waybar_deps() {
+  case "$PKG" in
+    pacman)
+      pkg_install base-devel meson ninja glib2 gtkmm3 gtk-layer-shell \
+        libpipewire playerctl mpd libmpdclient libnl jsoncpp libevdev \
+        libinput libjack wireplumber upower fmt spdlog libsystemd \
+        dbusmenu-gtk libpulse libmm-glib git
+      ;;
+    dnf|yum)
+      sudo dnf install -y git meson ninja-build gtkmm3-devel gtk-layer-shell-devel \
+        libpipewire-devel jsoncpp-devel libnl3-devel libevdev-devel libinput-devel \
+        jack2-devel wireplumber-devel upower-devel fmt-devel spdlog-devel \
+        systemd-devel mpd-devel libmpdclient-devel dbusmenu-gtk3-devel
+      ;;
+    apt)
+      sudo apt-get install -y git meson ninja-build g++ libglib2.0-dev \
+        libgtkmm-3.0-dev libgtk-layer-shell-dev libpipewire-0.3-dev \
+        libjsoncpp-dev libnl-3-dev libnl-genl-3-dev libevdev-dev libinput-dev \
+        libjack-jackd2-dev libwireplumber-0.5-dev libupower-glib-dev \
+        libfmt-dev libspdlog-dev libsystemd-dev libmpdclient-dev libdbusmenu-gtk3-dev
+      ;;
+    *) warn "install waybar build deps manually: meson ninja gtkmm3 gtk-layer-shell glib2 libpipewire jsoncpp libnl libevdev libinput libjack wireplumber upower fmt spdlog libsystemd libmpdclient dbusmenu-gtk3" ;;
+  esac
+}
+[ "$INSTALL_DEPS" -eq 1 ] && build_waybar_deps || true
+
+WAYBAR_TAG="0.16.0"
+WAYBAR_PATCH="$REPO_DIR/patches/waybar-workspace-strip.patch"
+if [ -f "$WAYBAR_PATCH" ]; then
+  BUILD_ROOT="$(mktemp -d)"
+  trap 'rm -rf "$BUILD_ROOT"' EXIT
+  if git clone --quiet --depth 1 --branch "$WAYBAR_TAG" \
+       https://github.com/Alexays/Waybar "$BUILD_ROOT/src" 2>/dev/null; then
+    git -C "$BUILD_ROOT/src" apply "$WAYBAR_PATCH" || die "workspace-strip patch failed to apply"
+    # 0.16 renamed some feature flags: login-proxy is a boolean now.
+    meson setup "$BUILD_ROOT/build" "$BUILD_ROOT/src" \
+      -Dtests=disabled -Dman-pages=disabled -Dcava=disabled -Dgps=disabled \
+      -Dwwan=disabled -Dlogin-proxy=false -Dsndio=disabled -Drfkill=disabled \
+      >/dev/null || die "waybar meson setup failed (missing build deps?)"
+    meson compile -C "$BUILD_ROOT/build" >/dev/null || die "waybar build failed"
+    install -Dm755 "$BUILD_ROOT/build/waybar" "$TARGET_HOME/.local/bin/waybar"
+    echo "waybar: built $WAYBAR_TAG + workspace-strip patch → ~/.local/bin/waybar"
+  else
+    warn "could not clone waybar $WAYBAR_TAG — skipping local build"
+    warn "install waybar yourself, then re-run with --no-deps"
+  fi
+else
+  warn "patches/waybar-workspace-strip.patch missing — skipping waybar build"
 fi
 
 # ------------------------------------------------------------- 3. waybar cfg
@@ -215,7 +262,7 @@ fi
 
 log "Verifying"
 command -v niri && niri --version 2>/dev/null | head -1 || warn "niri not on PATH (check cargo/bin or your distro bin)"
-command -v waybar >/dev/null && waybar --version 2>/dev/null | head -1 || warn "waybar not on PATH"
+"$TARGET_HOME/.local/bin/waybar" --version 2>/dev/null | tail -1 || warn "local waybar not installed"
 echo "Installed:"
 find "$TARGET_HOME/.config/waybar" "$TARGET_HOME/.config/niri" \
      "$TARGET_HOME/.config/foot" "$TARGET_HOME/.config/ghostty" \

@@ -1,0 +1,321 @@
+diff --git a/include/modules/niri/workspace_strip.hpp b/include/modules/niri/workspace_strip.hpp
+new file mode 100644
+index 0000000..80f1535
+--- /dev/null
++++ b/include/modules/niri/workspace_strip.hpp
+@@ -0,0 +1,52 @@
++#pragma once
++
++#include <gtkmm/box.h>
++#include <json/value.h>
++
++#include <memory>
++
++#include <string>
++#include <unordered_map>
++#include <vector>
++
++#include "AModule.hpp"
++#include "bar.hpp"
++#include "modules/niri/backend.hpp"
++#include "util/icon_loader.hpp"
++
++namespace waybar::modules::niri {
++
++// Workspace strip: one embossed tile per populated (or active) workspace,
++// carrying the real icon of every distinct app open on it.
++// Data comes from the shared niri IPC event stream (no polling); tiles are
++// rebuilt only when the signature of visible state actually changes.
++class WorkspaceStrip : public AModule, public EventHandler {
++ public:
++  WorkspaceStrip(const std::string& id, const Bar& bar, const Json::Value& config);
++  ~WorkspaceStrip() override;
++
++  void update() override;
++
++ private:
++  struct TileData {
++    unsigned id{};
++    unsigned idx{};
++    bool active{};
++    std::vector<std::string> app_ids;
++  };
++
++  void onEvent(const Json::Value& ev) override;
++  void rebuild(const std::vector<TileData>& tiles);
++  std::vector<TileData> collect() const;
++  static std::string signatureOf(const std::vector<TileData>& tiles);
++  std::string resolveIconName(const std::string& app_id);
++
++  const Bar& bar_;
++  Gtk::Box box_;
++  std::unique_ptr<IconLoader> icon_loader_;
++  unsigned icon_size_{16};
++  std::string last_signature_;
++  std::unordered_map<std::string, std::string> icon_cache_;
++};
++
++}  // namespace waybar::modules::niri
+diff --git a/meson.build b/meson.build
+index 88be32e..60bd971 100644
+--- a/meson.build
++++ b/meson.build
+@@ -364,6 +364,7 @@ if get_option('niri')
+         'src/modules/niri/window.cpp',
+         'src/modules/niri/workspaces.cpp',
+         'src/modules/niri/workspace.cpp',
++        'src/modules/niri/workspace_strip.cpp',
+     )
+     man_files += files(
+         'man/waybar-niri-language.5.scd',
+diff --git a/src/factory.cpp b/src/factory.cpp
+index 86abb43..5cc1abf 100644
+--- a/src/factory.cpp
++++ b/src/factory.cpp
+@@ -40,6 +40,7 @@
+ #ifdef HAVE_NIRI
+ #include "modules/niri/language.hpp"
+ #include "modules/niri/window.hpp"
++#include "modules/niri/workspace_strip.hpp"
+ #include "modules/niri/workspaces.hpp"
+ #endif
+ #ifdef HAVE_MANGO
+@@ -242,6 +243,9 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name,
+     if (ref == "niri/workspaces") {
+       return new waybar::modules::niri::Workspaces(id, bar_, config_[name]);
+     }
++    if (ref == "niri/workspace-strip") {
++      return new waybar::modules::niri::WorkspaceStrip(id, bar_, config_[name]);
++    }
+ #endif
+ #ifdef HAVE_MANGO
+     if (ref == "mango/window") {
+diff --git a/src/modules/niri/workspace_strip.cpp b/src/modules/niri/workspace_strip.cpp
+new file mode 100644
+index 0000000..ab6bc41
+--- /dev/null
++++ b/src/modules/niri/workspace_strip.cpp
+@@ -0,0 +1,223 @@
++#include "modules/niri/workspace_strip.hpp"
++
++#include <fmt/format.h>
++#include <fmt/ranges.h>
++#include <gtkmm/image.h>
++#include <gtkmm/label.h>
++#include <spdlog/spdlog.h>
++
++#include <algorithm>
++
++#include "util/icon_loader.hpp"
++
++namespace waybar::modules::niri {
++
++WorkspaceStrip::WorkspaceStrip(const std::string& id, const Bar& bar, const Json::Value& config)
++    : AModule(config, "workspace-strip", id, false, false),
++      bar_(bar),
++      box_(Gtk::ORIENTATION_HORIZONTAL, 2) {
++  if (config["icon-size"].isUInt()) {
++    icon_size_ = config["icon-size"].asUInt();
++  }
++
++  box_.set_name("niri-workspace-strip");
++  if (!id.empty()) {
++    box_.get_style_context()->add_class(id);
++  }
++  box_.get_style_context()->add_class(MODULE_CLASS);
++  event_box_.add(box_);
++
++  if (!gIPC) {
++    gIPC = std::make_unique<IPC>();
++  }
++
++  // Every event that can change the visible strip: workspace set, activation,
++  // and the window set per workspace.
++  for (const auto* ev :
++       {"WorkspacesChanged", "WorkspaceActivated", "WorkspaceActiveWindowChanged", "WindowsChanged",
++        "WindowOpenedOrChanged", "WindowClosed"}) {
++    gIPC->registerForIPC(ev, this);
++  }
++}
++
++WorkspaceStrip::~WorkspaceStrip() { gIPC->unregisterForIPC(this); }
++
++void WorkspaceStrip::onEvent(const Json::Value& /*ev*/) { dp.emit(); }
++
++void WorkspaceStrip::update() {
++  auto tiles = collect();
++  auto signature = signatureOf(tiles);
++  if (signature != last_signature_) {
++    last_signature_ = signature;
++    rebuild(tiles);
++  }
++  AModule::update();
++}
++
++std::vector<WorkspaceStrip::TileData> WorkspaceStrip::collect() const {
++  std::vector<TileData> tiles;
++
++  auto lock = gIPC->lockData();
++
++  for (const auto& ws : gIPC->workspaces()) {
++    TileData tile;
++    tile.id = ws["id"].asUInt();
++    tile.idx = ws["idx"].asUInt();
++    tile.active = ws["is_active"].asBool();
++
++    // Collect the workspace's windows, ordered the way they are laid out so
++    // icon order is stable across updates.
++    std::vector<Json::Value> windows;
++    for (const auto& win : gIPC->windows()) {
++      if (win["workspace_id"].asUInt() != tile.id) {
++        continue;
++      }
++      windows.push_back(win);
++    }
++
++    std::sort(windows.begin(), windows.end(), [](const Json::Value& a, const Json::Value& b) {
++      const auto& la = a["layout"];
++      const auto& lb = b["layout"];
++      const bool ha = la.isObject() && la["pos_in_scrolling_layout"].isArray();
++      const bool hb = lb.isObject() && lb["pos_in_scrolling_layout"].isArray();
++      if (!ha && !hb) return a["id"].asUInt64() < b["id"].asUInt64();
++      if (!ha) return false;
++      if (!hb) return true;
++      const int col_a = la["pos_in_scrolling_layout"][0].asInt();
++      const int col_b = lb["pos_in_scrolling_layout"][0].asInt();
++      if (col_a != col_b) return col_a < col_b;
++      return la["pos_in_scrolling_layout"][1].asInt() < lb["pos_in_scrolling_layout"][1].asInt();
++    });
++
++    for (const auto& win : windows) {
++      const auto app = win["app_id"].isString() ? win["app_id"].asString() : "";
++      if (app.empty()) {
++        continue;
++      }
++      // One icon per distinct application.
++      if (std::find(tile.app_ids.begin(), tile.app_ids.end(), app) != tile.app_ids.end()) {
++        continue;
++      }
++      tile.app_ids.push_back(app);
++    }
++
++    if (!tile.app_ids.empty() || tile.active) {
++      tiles.push_back(std::move(tile));
++    }
++  }
++
++  std::sort(tiles.begin(), tiles.end(),
++            [](const TileData& a, const TileData& b) { return a.idx < b.idx; });
++
++  return tiles;
++}
++
++std::string WorkspaceStrip::signatureOf(const std::vector<TileData>& tiles) {
++  std::string signature;
++  for (const auto& tile : tiles) {
++    signature += std::to_string(tile.idx);
++    signature += tile.active ? "+" : "-";
++    for (const auto& app : tile.app_ids) {
++      signature += ",";
++      signature += app;
++    }
++    signature += "|";
++  }
++  return signature;
++}
++
++void WorkspaceStrip::rebuild(const std::vector<TileData>& tiles) {
++  for (auto* child : box_.get_children()) {
++    box_.remove(*child);
++  }
++
++  if (spdlog::default_logger_raw()->should_log(spdlog::level::debug)) {
++    std::string summary;
++    for (const auto& tile : tiles) {
++      summary += fmt::format("[{}:{} active={} apps={}] ", tile.idx, tile.id, tile.active,
++                             fmt::join(tile.app_ids, ","));
++    }
++    spdlog::debug("[niri/workspace-strip] rebuild: {}", summary);
++  }
++
++  icon_loader_ = std::make_unique<IconLoader>();
++
++  for (const auto& tile : tiles) {
++    auto* button = Gtk::make_managed<Gtk::Button>();
++    button->set_relief(Gtk::RELIEF_NONE);
++    button->get_style_context()->add_class("ws-tile");
++    if (tile.active) {
++      button->get_style_context()->add_class("active");
++    }
++
++    auto* content = Gtk::make_managed<Gtk::Box>(Gtk::ORIENTATION_HORIZONTAL, 4);
++    auto* label = Gtk::make_managed<Gtk::Label>(std::to_string(tile.idx));
++    label->get_style_context()->add_class("ws-index");
++    content->pack_start(*label, false, false, 0);
++
++    for (const auto& app : tile.app_ids) {
++      auto* image = Gtk::make_managed<Gtk::Image>();
++      auto app_info = IconLoader::get_app_info_from_app_id_list(app);
++      bool loaded = app_info && icon_loader_->image_load_icon(*image, app_info, icon_size_);
++      if (!loaded) {
++        auto* fallback = Gtk::make_managed<Gtk::Label>(app.substr(0, 3));
++        fallback->get_style_context()->add_class("ws-fallback");
++        content->pack_start(*fallback, false, false, 0);
++        continue;
++      }
++      content->pack_start(*image, false, false, 0);
++    }
++
++    button->add(*content);
++
++    std::string tooltip;
++    for (const auto& app : tile.app_ids) {
++      tooltip += (tooltip.empty() ? "" : "\n") + app;
++    }
++    if (!tooltip.empty()) {
++      button->set_tooltip_text(tooltip);
++    }
++
++    const auto ws_id = tile.id;
++    button->signal_clicked().connect([ws_id] {
++      try {
++        Json::Value request(Json::objectValue);
++        auto& action = (request["Action"] = Json::Value(Json::objectValue));
++        auto& focusWorkspace = (action["FocusWorkspace"] = Json::Value(Json::objectValue));
++        auto& reference = (focusWorkspace["reference"] = Json::Value(Json::objectValue));
++        reference["Id"] = ws_id;
++        IPC::send(request);
++      } catch (const std::exception& e) {
++        spdlog::error("Niri: error focusing workspace: {}", e.what());
++      }
++    });
++
++    box_.pack_start(*button, false, false, 0);
++  }
++
++  box_.show_all();
++
++  // Self-test hook (WS_STRIP_SELFTEST=<n>): after layout, emits the clicked
++  // signal on the n-th tile exactly as a real press would, so the click path
++  // can be verified on machines where pointer injection is unavailable.
++  static bool selftest_done = false;
++  if (const char* selftest = std::getenv("WS_STRIP_SELFTEST"); selftest && !selftest_done) {
++    selftest_done = true;
++    const auto which = std::strtoul(selftest, nullptr, 10);
++    Glib::signal_timeout().connect(
++        [this, which]() {
++          auto children = box_.get_children();
++          if (which < children.size()) {
++            auto* btn = dynamic_cast<Gtk::Button*>(children[which]);
++            if (btn) {
++              spdlog::info("[niri/workspace-strip] selftest: emitting clicked on tile {}", which);
++              btn->clicked();
++            }
++          }
++          return false;
++        },
++        500);
++  }
++}
++
++}  // namespace waybar::modules::niri

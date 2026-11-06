@@ -138,3 +138,47 @@ tooltip * {
 #custom-bluelight label {
   font-size: 19px;
 }
+
+/* Workspace strip: embossed numbered tiles carrying the real app icons of
+   each workspace's windows. Separate from the #workspaces dots on the left.
+   Emboss = vertical gradient + bright top inner edge + dark bottom inner edge
+   + a soft drop shadow; active tile brightens and gains an outer glow. */
+#niri-workspace-strip {
+  margin: 0 10px;
+}
+
+#niri-workspace-strip button.ws-tile {
+  all: initial;
+  min-height: 24px;
+  padding: 0 8px;
+  margin: 4px 2px;
+  border-radius: 6px;
+  background-image: linear-gradient(to bottom,
+      #7c8ea6 0%, #55677c 45%, #3b4a5a 55%, #2c3742 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55),
+              inset 0 -1px 0 rgba(0, 0, 0, 0.60),
+              0 1px 2px rgba(0, 0, 0, 0.50);
+}
+
+#niri-workspace-strip button.ws-tile.active {
+  background-image: linear-gradient(to bottom,
+      #cfe3f7 0%, #8fb4d8 45%, #628cb4 55%, #4a7092 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85),
+              inset 0 -1px 0 rgba(0, 0, 0, 0.45),
+              0 0 7px rgba(150, 200, 255, 0.60);
+}
+
+#niri-workspace-strip label.ws-index {
+  all: initial;
+  color: #ffffff;
+  font-family: "CaskaydiaMono Nerd Font", monospace;
+  font-size: 13px;
+  font-weight: bold;
+  margin: 0 3px 0 1px;
+}
+
+#niri-workspace-strip label.ws-fallback {
+  all: initial;
+  color: #ffffff;
+  font-size: 11px;
+}
