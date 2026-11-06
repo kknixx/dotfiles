@@ -33,7 +33,8 @@
     "format": ""
   },
   "niri/workspace-strip": {
-    "icon-size": 16
+    "icon-size": 16,
+    "accent": "#008080"
   },
   "clock": {
     "format": "{:%b %d %H:%M}",

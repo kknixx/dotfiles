@@ -1,3 +1,80 @@
+diff --git a/include/modules/niri/workspace_accent.hpp b/include/modules/niri/workspace_accent.hpp
+new file mode 100644
+index 0000000..c263f2b
+--- /dev/null
++++ b/include/modules/niri/workspace_accent.hpp
+@@ -0,0 +1,71 @@
++#pragma once
++
++#include <array>
++#include <cctype>
++#include <cstddef>
++#include <cstdio>
++#include <cstdlib>
++#include <optional>
++#include <string>
++
++namespace waybar::modules::niri {
++
++using Rgb = std::array<int, 3>;
++
++// Parse "#rrggbb"; anything else is rejected so a typo cannot produce a
++// half-applied gradient.
++inline std::optional<Rgb> parseHexColor(const std::string& value) {
++  if (value.size() != 7 || value.front() != '#') return std::nullopt;
++  Rgb rgb{};
++  for (int i = 0; i < 3; ++i) {
++    const auto part = value.substr(static_cast<size_t>(1 + i * 2), 2);
++    for (char c : part) {
++      if (std::isxdigit(static_cast<unsigned char>(c)) == 0) return std::nullopt;
++    }
++    rgb[static_cast<size_t>(i)] = static_cast<int>(std::strtol(part.c_str(), nullptr, 16));
++  }
++  return rgb;
++}
++
++inline std::string toHex(const Rgb& rgb) {
++  char buffer[8];
++  std::snprintf(buffer, sizeof(buffer), "#%02x%02x%02x", rgb[0], rgb[1], rgb[2]);
++  return buffer;
++}
++
++inline Rgb mixColor(const Rgb& from, const Rgb& to, double amount) {
++  Rgb out{};
++  for (size_t i = 0; i < 3; ++i) {
++    out[i] = static_cast<int>(from[i] + (to[i] - from[i]) * amount + 0.5);
++  }
++  return out;
++}
++
++// CSS for the active tile, derived from a single accent colour: light
++// specular top, accent body, darkened bottom edge, and a matching glow.
++// Returns an empty string when the accent is not a valid #rrggbb colour.
++inline std::string activeTileCss(const std::string& accent) {
++  const auto parsed = parseHexColor(accent);
++  if (!parsed) return {};
++
++  const auto base = *parsed;
++  const auto light = mixColor(base, {255, 255, 255}, 0.55);
++  const auto upper = mixColor(base, {255, 255, 255}, 0.18);
++  const auto lower = mixColor(base, {0, 0, 0}, 0.30);
++  const auto dark = mixColor(base, {0, 0, 0}, 0.55);
++
++  return "#niri-workspace-strip button.ws-tile.active {\n"
++         "  background-image: linear-gradient(to bottom, " +
++         toHex(light) + " 0%, " + toHex(upper) + " 45%, " + toHex(lower) + " 55%, " +
++         toHex(dark) +
++         " 100%);\n"
++         "  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85),\n"
++         "              inset 0 -1px 0 rgba(0, 0, 0, 0.55),\n"
++         "              0 0 7px rgba(" +
++         std::to_string(base[0]) + ", " + std::to_string(base[1]) + ", " +
++         std::to_string(base[2]) +
++         ", 0.65);\n"
++         "}\n";
++}
++
++}  // namespace waybar::modules::niri
 diff --git a/include/modules/niri/workspace_navigation.hpp b/include/modules/niri/workspace_navigation.hpp
 new file mode 100644
 index 0000000..74d67c5
@@ -32,13 +109,14 @@ index 0000000..74d67c5
 +}  // namespace waybar::modules::niri
 diff --git a/include/modules/niri/workspace_strip.hpp b/include/modules/niri/workspace_strip.hpp
 new file mode 100644
-index 0000000..d1003a2
+index 0000000..72dc70f
 --- /dev/null
 +++ b/include/modules/niri/workspace_strip.hpp
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,55 @@
 +#pragma once
 +
 +#include <gtkmm/box.h>
++#include <gtkmm/cssprovider.h>
 +#include <json/value.h>
 +
 +#include <memory>
@@ -82,6 +160,7 @@ index 0000000..d1003a2
 +
 +  const Bar& bar_;
 +  Gtk::Box box_;
++  Glib::RefPtr<Gtk::CssProvider> accent_provider_;
 +  std::unique_ptr<IconLoader> icon_loader_;
 +  unsigned icon_size_{16};
 +  std::string last_signature_;
@@ -130,10 +209,10 @@ index 86abb43..ba912be 100644
      if (ref == "mango/window") {
 diff --git a/src/modules/niri/workspace_strip.cpp b/src/modules/niri/workspace_strip.cpp
 new file mode 100644
-index 0000000..4b1536a
+index 0000000..9797f45
 --- /dev/null
 +++ b/src/modules/niri/workspace_strip.cpp
-@@ -0,0 +1,247 @@
+@@ -0,0 +1,264 @@
 +#include "modules/niri/workspace_strip.hpp"
 +
 +#include <gtkmm/image.h>
@@ -142,6 +221,7 @@ index 0000000..4b1536a
 +
 +#include <algorithm>
 +
++#include "modules/niri/workspace_accent.hpp"
 +#include "modules/niri/workspace_navigation.hpp"
 +#include "util/icon_loader.hpp"
 +
@@ -161,6 +241,22 @@ index 0000000..4b1536a
 +  }
 +  box_.get_style_context()->add_class(MODULE_CLASS);
 +  event_box_.add(box_);
++
++  // Active-tile accent is a config value ("accent": "#rrggbb"), not hardcoded
++  // CSS: waybar CSS cannot read config, so the module injects a provider
++  // derived from the colour. Invalid values fall back to style.css.
++  if (config["accent"].isString()) {
++    const auto css = activeTileCss(config["accent"].asString());
++    if (css.empty()) {
++      spdlog::warn("[niri/workspace-strip] invalid accent '{}' — expected #rrggbb",
++                   config["accent"].asString());
++    } else {
++      accent_provider_ = Gtk::CssProvider::create();
++      accent_provider_->load_from_data(css);
++      box_.get_style_context()->add_provider(accent_provider_,
++                                             GTK_STYLE_PROVIDER_PRIORITY_USER);
++    }
++  }
 +
 +  // Scroll anywhere over the strip switches workspace, matching the dots.
 +  event_box_.add_events(Gdk::SCROLL_MASK | Gdk::SMOOTH_SCROLL_MASK);
@@ -407,10 +503,10 @@ index 0000000..fb82ea4
 +test('niri', niri_test, workdir: meson.project_source_root())
 diff --git a/test/niri/workspace_navigation.cpp b/test/niri/workspace_navigation.cpp
 new file mode 100644
-index 0000000..b21df2a
+index 0000000..8f69cb6
 --- /dev/null
 +++ b/test/niri/workspace_navigation.cpp
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,53 @@
 +#if __has_include(<catch2/catch_test_macros.hpp>)
 +#include <catch2/catch_test_macros.hpp>
 +#else
@@ -418,6 +514,7 @@ index 0000000..b21df2a
 +#endif
 +
 +#include "modules/niri/workspace_navigation.hpp"
++#include "modules/niri/workspace_accent.hpp"
 +
 +using waybar::modules::niri::adjacentVisibleWorkspaceId;
 +
@@ -436,6 +533,25 @@ index 0000000..b21df2a
 +  SECTION("wrap from last visible tile to first") {
 +    const std::vector<std::pair<uint64_t, bool>> from_five{{3, false}, {5, true}};
 +    REQUIRE(adjacentVisibleWorkspaceId(from_five, +1) == 3);
++  }
++}
++
++TEST_CASE("workspace strip accent comes from config", "[niri][workspace-strip][accent]") {
++  using waybar::modules::niri::activeTileCss;
++  using waybar::modules::niri::parseHexColor;
++
++  SECTION("valid accent produces an active-tile gradient with that base colour") {
++    const auto css = activeTileCss("#008080");
++    REQUIRE(css.find("#niri-workspace-strip button.ws-tile.active") != std::string::npos);
++    REQUIRE(css.find("linear-gradient") != std::string::npos);
++    REQUIRE(css.find("rgba(0, 128, 128, 0.65)") != std::string::npos);
++  }
++
++  SECTION("invalid accents are rejected so style.css stays in charge") {
++    REQUIRE(activeTileCss("teal").empty());
++    REQUIRE(activeTileCss("#12345").empty());
++    REQUIRE(activeTileCss("#gggggg").empty());
++    REQUIRE(parseHexColor("#008080").has_value());
 +  }
 +}
 +

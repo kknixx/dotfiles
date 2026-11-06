@@ -154,18 +154,10 @@ tooltip * {
   margin: 4px 2px;
   border-radius: 6px;
   background-image: linear-gradient(to bottom,
-      #7c8ea6 0%, #55677c 45%, #3b4a5a 55%, #2c3742 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55),
-              inset 0 -1px 0 rgba(0, 0, 0, 0.60),
-              0 1px 2px rgba(0, 0, 0, 0.50);
-}
-
-#niri-workspace-strip button.ws-tile.active {
-  background-image: linear-gradient(to bottom,
-      #cfe3f7 0%, #8fb4d8 45%, #628cb4 55%, #4a7092 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85),
-              inset 0 -1px 0 rgba(0, 0, 0, 0.45),
-              0 0 7px rgba(150, 200, 255, 0.60);
+      #343b46 0%, #252b34 45%, #171c23 55%, #101419 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24),
+              inset 0 -1px 0 rgba(0, 0, 0, 0.82),
+              0 1px 2px rgba(0, 0, 0, 0.62);
 }
 
 #niri-workspace-strip label.ws-index {
