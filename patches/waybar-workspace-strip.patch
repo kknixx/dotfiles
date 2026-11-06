@@ -75,6 +75,31 @@ index 0000000..c263f2b
 +}
 +
 +}  // namespace waybar::modules::niri
+diff --git a/include/modules/niri/workspace_apps.hpp b/include/modules/niri/workspace_apps.hpp
+new file mode 100644
+index 0000000..5b30eb3
+--- /dev/null
++++ b/include/modules/niri/workspace_apps.hpp
+@@ -0,0 +1,19 @@
++#pragma once
++
++#include <string>
++#include <vector>
++
++namespace waybar::modules::niri {
++
++// Keep one entry per window, not per application: multiple instances of the
++// same app (e.g. three foot terminals) must render three icons.
++inline std::vector<std::string> workspaceAppInstances(const std::vector<std::string>& app_ids) {
++  std::vector<std::string> instances;
++  instances.reserve(app_ids.size());
++  for (const auto& app_id : app_ids) {
++    if (!app_id.empty()) instances.push_back(app_id);
++  }
++  return instances;
++}
++
++}  // namespace waybar::modules::niri
 diff --git a/include/modules/niri/workspace_navigation.hpp b/include/modules/niri/workspace_navigation.hpp
 new file mode 100644
 index 0000000..74d67c5
@@ -209,10 +234,10 @@ index 86abb43..ba912be 100644
      if (ref == "mango/window") {
 diff --git a/src/modules/niri/workspace_strip.cpp b/src/modules/niri/workspace_strip.cpp
 new file mode 100644
-index 0000000..b5a40a4
+index 0000000..aba9ac9
 --- /dev/null
 +++ b/src/modules/niri/workspace_strip.cpp
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,267 @@
 +#include "modules/niri/workspace_strip.hpp"
 +
 +#include <gtkmm/image.h>
@@ -222,6 +247,7 @@ index 0000000..b5a40a4
 +#include <algorithm>
 +
 +#include "modules/niri/workspace_accent.hpp"
++#include "modules/niri/workspace_apps.hpp"
 +#include "modules/niri/workspace_navigation.hpp"
 +#include "util/icon_loader.hpp"
 +
@@ -371,17 +397,13 @@ index 0000000..b5a40a4
 +      return la["pos_in_scrolling_layout"][1].asInt() < lb["pos_in_scrolling_layout"][1].asInt();
 +    });
 +
++    // One icon per window instance: three foot terminals show three icons.
++    std::vector<std::string> app_ids;
++    app_ids.reserve(windows.size());
 +    for (const auto& win : windows) {
-+      const auto app = win["app_id"].isString() ? win["app_id"].asString() : "";
-+      if (app.empty()) {
-+        continue;
-+      }
-+      // One icon per distinct application.
-+      if (std::find(tile.app_ids.begin(), tile.app_ids.end(), app) != tile.app_ids.end()) {
-+        continue;
-+      }
-+      tile.app_ids.push_back(app);
++      app_ids.push_back(win["app_id"].isString() ? win["app_id"].asString() : "");
 +    }
++    tile.app_ids = workspaceAppInstances(app_ids);
 +
 +    if (!tile.app_ids.empty() || tile.active) {
 +      tiles.push_back(std::move(tile));
@@ -509,10 +531,10 @@ index 0000000..fb82ea4
 +test('niri', niri_test, workdir: meson.project_source_root())
 diff --git a/test/niri/workspace_navigation.cpp b/test/niri/workspace_navigation.cpp
 new file mode 100644
-index 0000000..8f69cb6
+index 0000000..9c1cf82
 --- /dev/null
 +++ b/test/niri/workspace_navigation.cpp
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,74 @@
 +#if __has_include(<catch2/catch_test_macros.hpp>)
 +#include <catch2/catch_test_macros.hpp>
 +#else
@@ -521,8 +543,10 @@ index 0000000..8f69cb6
 +
 +#include "modules/niri/workspace_navigation.hpp"
 +#include "modules/niri/workspace_accent.hpp"
++#include "modules/niri/workspace_apps.hpp"
 +
 +using waybar::modules::niri::adjacentVisibleWorkspaceId;
++using waybar::modules::niri::workspaceAppInstances;
 +
 +TEST_CASE("workspace strip skips unpopulated workspace indexes", "[niri][workspace-strip]") {
 +  const std::vector<std::pair<uint64_t, bool>> visible{{3, true}, {5, false}};
@@ -558,6 +582,25 @@ index 0000000..8f69cb6
 +    REQUIRE(activeTileCss("#12345").empty());
 +    REQUIRE(activeTileCss("#gggggg").empty());
 +    REQUIRE(parseHexColor("#008080").has_value());
++  }
++}
++
++TEST_CASE("workspace strip shows one icon per window instance", "[niri][workspace-strip][icons]") {
++  SECTION("three foot terminals produce three icons, not one") {
++    const auto icons = workspaceAppInstances({"foot", "foot", "foot"});
++    REQUIRE(icons.size() == 3);
++    REQUIRE(icons[0] == "foot");
++    REQUIRE(icons[2] == "foot");
++  }
++
++  SECTION("distinct apps keep their layout order and count") {
++    const auto icons = workspaceAppInstances({"zcode", "org.gnome.TextEditor"});
++    REQUIRE(icons == std::vector<std::string>{"zcode", "org.gnome.TextEditor"});
++  }
++
++  SECTION("windows without an app id are skipped") {
++    const auto icons = workspaceAppInstances({"foot", "", "floorp"});
++    REQUIRE(icons == std::vector<std::string>{"foot", "floorp"});
 +  }
 +}
 +
