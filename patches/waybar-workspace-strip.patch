@@ -209,10 +209,10 @@ index 86abb43..ba912be 100644
      if (ref == "mango/window") {
 diff --git a/src/modules/niri/workspace_strip.cpp b/src/modules/niri/workspace_strip.cpp
 new file mode 100644
-index 0000000..9797f45
+index 0000000..b5a40a4
 --- /dev/null
 +++ b/src/modules/niri/workspace_strip.cpp
-@@ -0,0 +1,264 @@
+@@ -0,0 +1,270 @@
 +#include "modules/niri/workspace_strip.hpp"
 +
 +#include <gtkmm/image.h>
@@ -421,6 +421,12 @@ index 0000000..9797f45
 +    button->get_style_context()->add_class("ws-tile");
 +    if (tile.active) {
 +      button->get_style_context()->add_class("active");
++    }
++    // A provider attached to the module box does not reach child widgets on
++    // GTK3, so attach the accent provider to each tile's own context.
++    if (accent_provider_) {
++      button->get_style_context()->add_provider(accent_provider_,
++                                                GTK_STYLE_PROVIDER_PRIORITY_USER);
 +    }
 +
 +    // Buttons swallow scroll before the container sees it — handle it here too.
