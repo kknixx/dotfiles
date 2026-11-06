@@ -1,9 +1,9 @@
 diff --git a/include/modules/niri/workspace_strip.hpp b/include/modules/niri/workspace_strip.hpp
 new file mode 100644
-index 0000000..80f1535
+index 0000000..a0915cb
 --- /dev/null
 +++ b/include/modules/niri/workspace_strip.hpp
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,54 @@
 +#pragma once
 +
 +#include <gtkmm/box.h>
@@ -42,6 +42,8 @@ index 0000000..80f1535
 +  };
 +
 +  void onEvent(const Json::Value& ev) override;
++  bool handleScroll(GdkEventScroll* event) override;
++  static void focusWorkspaceStep(int direction);
 +  void rebuild(const std::vector<TileData>& tiles);
 +  std::vector<TileData> collect() const;
 +  static std::string signatureOf(const std::vector<TileData>& tiles);
@@ -92,14 +94,12 @@ index 86abb43..5cc1abf 100644
      if (ref == "mango/window") {
 diff --git a/src/modules/niri/workspace_strip.cpp b/src/modules/niri/workspace_strip.cpp
 new file mode 100644
-index 0000000..ab6bc41
+index 0000000..3cce29d
 --- /dev/null
 +++ b/src/modules/niri/workspace_strip.cpp
-@@ -0,0 +1,223 @@
+@@ -0,0 +1,236 @@
 +#include "modules/niri/workspace_strip.hpp"
 +
-+#include <fmt/format.h>
-+#include <fmt/ranges.h>
 +#include <gtkmm/image.h>
 +#include <gtkmm/label.h>
 +#include <spdlog/spdlog.h>
@@ -125,6 +125,13 @@ index 0000000..ab6bc41
 +  box_.get_style_context()->add_class(MODULE_CLASS);
 +  event_box_.add(box_);
 +
++  // Scroll anywhere over the strip switches workspace, matching the dots.
++  event_box_.add_events(Gdk::SCROLL_MASK | Gdk::SMOOTH_SCROLL_MASK);
++  box_.add_events(Gdk::SCROLL_MASK | Gdk::SMOOTH_SCROLL_MASK);
++  event_box_.signal_scroll_event().connect(
++      sigc::mem_fun(*this, &WorkspaceStrip::handleScroll), false);
++  box_.signal_scroll_event().connect(sigc::mem_fun(*this, &WorkspaceStrip::handleScroll), false);
++
 +  if (!gIPC) {
 +    gIPC = std::make_unique<IPC>();
 +  }
@@ -141,6 +148,40 @@ index 0000000..ab6bc41
 +WorkspaceStrip::~WorkspaceStrip() { gIPC->unregisterForIPC(this); }
 +
 +void WorkspaceStrip::onEvent(const Json::Value& /*ev*/) { dp.emit(); }
++
++bool WorkspaceStrip::handleScroll(GdkEventScroll* event) {
++  if (gdk_event_get_pointer_emulated(reinterpret_cast<GdkEvent*>(event))) {
++    return false;
++  }
++
++  const auto direction = getScrollDir(event);
++  if (direction == SCROLL_DIR::NONE) {
++    return true;
++  }
++
++  const char* action_name = nullptr;
++  if (direction == SCROLL_DIR::DOWN || direction == SCROLL_DIR::RIGHT) {
++    action_name = "FocusWorkspaceDown";
++  } else if (direction == SCROLL_DIR::UP || direction == SCROLL_DIR::LEFT) {
++    action_name = "FocusWorkspaceUp";
++  }
++
++  if (action_name == nullptr) {
++    return true;
++  }
++
++  try {
++    Json::Value request(Json::objectValue);
++    auto& action = (request["Action"] = Json::Value(Json::objectValue));
++    action[action_name] = Json::Value(Json::objectValue);
++    IPC::send(request);
++  } catch (const std::exception& e) {
++    spdlog::error("WorkspaceStrip: scroll action failed: {}", e.what());
++    return false;
++  }
++
++  return true;
++}
 +
 +void WorkspaceStrip::update() {
 +  auto tiles = collect();
@@ -229,15 +270,6 @@ index 0000000..ab6bc41
 +    box_.remove(*child);
 +  }
 +
-+  if (spdlog::default_logger_raw()->should_log(spdlog::level::debug)) {
-+    std::string summary;
-+    for (const auto& tile : tiles) {
-+      summary += fmt::format("[{}:{} active={} apps={}] ", tile.idx, tile.id, tile.active,
-+                             fmt::join(tile.app_ids, ","));
-+    }
-+    spdlog::debug("[niri/workspace-strip] rebuild: {}", summary);
-+  }
-+
 +  icon_loader_ = std::make_unique<IconLoader>();
 +
 +  for (const auto& tile : tiles) {
@@ -247,6 +279,11 @@ index 0000000..ab6bc41
 +    if (tile.active) {
 +      button->get_style_context()->add_class("active");
 +    }
++
++    // Buttons swallow scroll before the container sees it — handle it here too.
++    button->add_events(Gdk::SCROLL_MASK | Gdk::SMOOTH_SCROLL_MASK);
++    button->signal_scroll_event().connect(sigc::mem_fun(*this, &WorkspaceStrip::handleScroll),
++                                          false);
 +
 +    auto* content = Gtk::make_managed<Gtk::Box>(Gtk::ORIENTATION_HORIZONTAL, 4);
 +    auto* label = Gtk::make_managed<Gtk::Label>(std::to_string(tile.idx));
@@ -294,28 +331,6 @@ index 0000000..ab6bc41
 +  }
 +
 +  box_.show_all();
-+
-+  // Self-test hook (WS_STRIP_SELFTEST=<n>): after layout, emits the clicked
-+  // signal on the n-th tile exactly as a real press would, so the click path
-+  // can be verified on machines where pointer injection is unavailable.
-+  static bool selftest_done = false;
-+  if (const char* selftest = std::getenv("WS_STRIP_SELFTEST"); selftest && !selftest_done) {
-+    selftest_done = true;
-+    const auto which = std::strtoul(selftest, nullptr, 10);
-+    Glib::signal_timeout().connect(
-+        [this, which]() {
-+          auto children = box_.get_children();
-+          if (which < children.size()) {
-+            auto* btn = dynamic_cast<Gtk::Button*>(children[which]);
-+            if (btn) {
-+              spdlog::info("[niri/workspace-strip] selftest: emitting clicked on tile {}", which);
-+              btn->clicked();
-+            }
-+          }
-+          return false;
-+        },
-+        500);
-+  }
 +}
 +
 +}  // namespace waybar::modules::niri
